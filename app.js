@@ -1,79 +1,79 @@
-const express = require('express')
-const dotenv = require('dotenv');
-const shortId = require('shortid')
-const createHttpError = require('http-errors')
-const mongoose = require('mongoose')
-const path = require('path')
-const ShortUrl = require('./models/url.model')
+const express = require("express");
+const dotenv = require("dotenv");
+const shortId = require("shortid");
+const createHttpError = require("http-errors");
+const mongoose = require("mongoose");
+const path = require("path");
+const ShortUrl = require("./models/url.model");
 
 dotenv.config();
-const app = express()
-app.use(express.static(path.join(__dirname, 'public')))
-app.use(express.json())
-app.use(express.urlencoded({ extended: false }))
+const app = express();
+app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 mongoose
   .connect(process.env.DATABASE_URL, {
-    dbName: 'url-shortner',
+    dbName: "url-shortner",
     useNewUrlParser: true,
     useUnifiedTopology: true,
     useCreateIndex: true,
   })
-  .then(() => console.log('mongoose connected 💾'))
-  .catch((error) => console.log('Error connecting..'))
+  .then(() => console.log("mongoose connected 💾"))
+  .catch((error) => console.log("Error connecting.."));
 
-app.set('view engine', 'ejs')
+app.set("view engine", "ejs");
 
-app.get('/', async (req, res, next) => {
-  res.render('index')
-})
+app.get("/", async (req, res, next) => {
+  res.render("index", { short_id: null });
+});
 
-app.post('/', async (req, res, next) => {
+app.post("/", async (req, res, next) => {
   try {
-    const { url } = req.body
+    const { url } = req.body;
     if (!url) {
-      throw createHttpError.BadRequest('Provide a valid url')
+      throw createHttpError.BadRequest("Provide a valid url");
     }
-    const urlExists = await ShortUrl.findOne({ url })
+    const urlExists = await ShortUrl.findOne({ url });
     if (urlExists) {
-      res.render('index', {
-        // short_url: `${req.hostname}/${urlExists.shortId}`,
+      res.render("index", {
+        short_id: urlExists.shortId,
         short_url: `${req.headers.host}/${urlExists.shortId}`,
-      })
-      return
+      });
+      return;
     }
-    const shortUrl = new ShortUrl({ url: url, shortId: shortId.generate() })
-    const result = await shortUrl.save()
-    res.render('index', {
+    const shortUrl = new ShortUrl({ url: url, shortId: shortId.generate() });
+    const result = await shortUrl.save();
+    res.render("index", {
       // short_url: `${req.hostname}/${urlExists.shortId}`,
       short_url: `${req.headers.host}/${result.shortId}`,
-    })
+    });
   } catch (error) {
-    next(error)
+    next(error);
   }
-})
+});
 
-app.get('/:shortId', async (req, res, next) => {
+app.get("/:id", async (req, res, next) => {
   try {
-    const { shortId } = req.params
-    const result = await ShortUrl.findOne({ shortId })
+    const { id } = req.params;
+    const result = await ShortUrl.findOne({ shortId: id });
     if (!result) {
-      throw createHttpError.NotFound('Short url does not exist')
+      throw createHttpError.NotFound("Short url does not exist");
     }
     res.redirect(result.url);
   } catch (error) {
-    next(error)
+    next(error);
   }
-})
+});
 
 app.use((req, res, next) => {
-  next(createHttpError.NotFound())
-})
+  next(createHttpError.NotFound());
+});
 
 app.use((err, req, res, next) => {
-  res.status(err.status || 500)
-  res.render('index', { error: err.message })
-})
+  res.status(err.status || 500);
+  res.render("index", { error: err.message });
+});
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`🌏 on port ${port}...`))
+app.listen(port, () => console.log(`🌏 on port ${port}...`));
